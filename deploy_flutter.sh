@@ -5,41 +5,47 @@
 # Default values
 APP_NAME="flutter-web"
 DOMAIN="example.com"
+EMAIL="your-email@example.com"
+BUILD_DIR="build/web"
 
-# Parse command-line arguments
+# Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --name) APP_NAME="$2"; shift ;;
         --domain) DOMAIN="$2"; shift ;;
-        *) echo "❌ Unknown parameter: $1"; exit 1 ;;
+        --email) EMAIL="$2"; shift ;;
+        *) echo "❌ Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
 done
 
-echo "🚀 Deploying Flutter Web App: $APP_NAME on domain $DOMAIN"
+echo "🚀 Deploying $APP_NAME to https://$DOMAIN"
 
-# Paths
-DEPLOY_DIR="/var/www/$APP_NAME"
-NGINX_CONF="/etc/nginx/sites-available/$APP_NAME"
+# 1. Build Flutter Web
+echo "🔨 Building Flutter Web..."
+flutter build web
 
-# Step 1: Build Flutter Web (optional, if you run this on development machine)
-# echo "🛠️ Building Flutter web..."
-# flutter build web
-
-# Step 2: Install required packages
-echo "🔄 Installing Nginx and Certbot..."
+# 2. Install Nginx and Certbot
+echo "📦 Installing Nginx and Certbot..."
 sudo apt update
 sudo apt install -y nginx certbot python3-certbot-nginx
 
+# 3. Copy build to /var/www
+echo "📁 Copying build to /var/www/$APP_NAME..."
+sudo rm -rf /var/www/$APP_NAME
+sudo mkdir -p /var/www/$APP_NAME
+sudo cp -r $BUILD_DIR/* /var/www/$APP_NAME/
 
-# Step 4: Create Nginx configuration
-echo "🌐 Creating Nginx configuration..."
+# 4. Create Nginx config
+NGINX_CONF="/etc/nginx/sites-available/$APP_NAME"
+
+echo "🌐 Creating Nginx config..."
 sudo bash -c "cat > $NGINX_CONF" <<EOF
 server {
     listen 80;
     server_name $DOMAIN;
 
-    root $DEPLOY_DIR;
+    root /var/www/$APP_NAME;
     index index.html;
 
     location / {
@@ -48,13 +54,14 @@ server {
 }
 EOF
 
-# Step 5: Enable site and restart Nginx
-echo "🔄 Enabling site and restarting Nginx..."
-sudo ln -s $NGINX_CONF /etc/nginx/sites-enabled/ || true
+# 5. Enable site
+echo "🔗 Enabling Nginx site..."
+sudo ln -sf $NGINX_CONF /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 
-# Step 6: Secure with SSL using Certbot
-echo "🔒 Setting up SSL for $DOMAIN..."
-sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos 
+# 6. Setup SSL
+echo "🔒 Setting up SSL with Certbot..."
+sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m $EMAIL
 
 echo "✅ Deployment complete! Visit: https://$DOMAIN"
+
