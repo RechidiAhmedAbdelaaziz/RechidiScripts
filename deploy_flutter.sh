@@ -6,7 +6,6 @@
 APP_NAME="flutter-web"
 DOMAIN="example.com"
 EMAIL="your-email@example.com"
-BUILD_DIR="build/web"
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
@@ -30,11 +29,7 @@ echo "📦 Installing Nginx and Certbot..."
 sudo apt update
 sudo apt install -y nginx certbot python3-certbot-nginx
 
-# 3. Copy build to /var/www
-echo "📁 Copying build to /var/www/$APP_NAME..."
-sudo rm -rf /var/www/$APP_NAME
-sudo mkdir -p /var/www/$APP_NAME
-sudo cp -r $BUILD_DIR/* /var/www/$APP_NAME/
+
 
 # 4. Create Nginx config
 NGINX_CONF="/etc/nginx/sites-available/$APP_NAME"
